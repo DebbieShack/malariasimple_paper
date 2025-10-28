@@ -2,7 +2,7 @@
 
 This repository contains the R script and supporting code used in the analyses for the paper:
 
-> **Shackleton, D.** et al. (Review). *Fast and flexible malaria transmission modelling with `malariasimple`*. PLOS Computational Biology.  
+> **Shackleton, D.** et al. (Review). *malariasimple: An R package for fast simulations of malaria transmission*. PLOS Computational Biology.  
 > DOI: 
 
 ---
