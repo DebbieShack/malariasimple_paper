@@ -24,7 +24,7 @@ library(microbenchmark) #Version 1.5.0
 library(dplyr) #Version 1.1.4
 library(ggplot2) #Version 3.5.2
 library(cowplot) #Version 1.2.0
-source("C:/Users/Debbie/OneDrive - Imperial College London/malariasimple_stuff/paper/malariasimple_paper_plots_neat_functions.R")
+source("Shackleton26_functions.R")
 
 #Set colour scheme
 simple_det_col   <- "#CA0020"
@@ -43,9 +43,7 @@ n_sims = 20
 n_years = 20
 test_pops <- seq(10000, 100000, by = 10000)
 
-# n_sims <- 5
-# n_years <- 2
-# test_pops <- seq(2000,4000, by = 1000)
+
 malsim_timings_10 <- malsim_basic_timings(
   test_pops = test_pops,
   n_sims = n_sims,
