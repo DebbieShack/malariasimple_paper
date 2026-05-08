@@ -1,22 +1,26 @@
 ##------Install any required packages available on CRAN
-# pkgs <- c(
-#   "microbenchmark",
-#   "dplyr",
-#   "ggplot2",
-#   "cowplot"
-# )
-# to_install <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
-# if (length(to_install) > 0) {
-#   install.packages(to_install)
-# }
+pkgs <- c(
+  "microbenchmark",
+  "dplyr",
+  "ggplot2",
+  "cowplot"
+)
+to_install <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
+if (length(to_install) > 0) {
+  install.packages(to_install)
+}
 
 #--------Install malariasimple
-# install.packages("pak")
-# pak::pak("mrc-ide/malariasimple")
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak", repos = "https://cloud.r-project.org", type = "binary")
+}
+pak::pak("mrc-ide/malariasimple")
 
 #--------Install malariasimulation
-# install.packages("remotes")
-# remotes::install_github('mrc-ide/malariasimulation')
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes")
+}
+remotes::install_github('mrc-ide/malariasimulation')
 
 library(malariasimple) #Version 0.1.0
 library(malariasimulation) #Version 2.0.2
@@ -24,7 +28,7 @@ library(microbenchmark) #Version 1.5.0
 library(dplyr) #Version 1.1.4
 library(ggplot2) #Version 3.5.2
 library(cowplot) #Version 1.2.0
-source("Shackleton26_functions.R")
+source("Shackleton26_functions_revised.R")
 
 #Set colour scheme
 simple_det_col   <- "#CA0020"
@@ -122,21 +126,11 @@ malsim_df <- rbind(
             max_time = max(time),
             mean_time = mean(time))
 
-malsim_plt <- ggplot(malsim_df) +
-  geom_smooth(aes(x=pop, y = mean_time / 10^9, group = eir, col = eir), method = "lm", se = FALSE) +
-  geom_point(aes(x=pop, y = mean_time / 10^9, group = eir, col = eir)) +
-  geom_errorbar(aes(x=pop, ymin = min_time / 10^9, ymax = max_time / 10^9, group = eir, col = eir), width = median(test_pops) / 10) +
-  scale_color_manual(values= c(`10` = "grey70", `50` = "grey40", `200` = "black")) +
-  labs(x = "Human Population", y = "Mean Runtime (s)", col = "Baseline EIR") +
-  ylim(0,NA) +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
 #------------------ Prepare malariasimple plot -----------------------------
 #Add medium malariasimulation for comparison
 med_malsim <- malsim_df %>%
   ungroup() %>%
-  filter(pop == 3000, eir == 50) %>%
+  filter(pop == 50000, eir == 50) %>%
   dplyr::select(-c(pop, eir)) %>%
   slice(rep(1,3)) %>%
   mutate(sim = "malariasimulation",
@@ -162,20 +156,36 @@ simple_df <- rbind(
   mutate(sim = factor(sim, levels = c("Deterministic", "Stochastic", "malariasimulation")),
          ints = factor(ints, levels = c("dual", "itn", "basic")))
 
+txt_size <- 8
+lbl_size <- 10
+malsim_plt <- ggplot(malsim_df) +
+  geom_smooth(aes(x=pop, y = mean_time, group = eir, col = eir), method = "lm", se = FALSE) +
+  geom_point(aes(x=pop, y = mean_time, group = eir, col = eir)) +
+  geom_errorbar(aes(x=pop, ymin = min_time, ymax = max_time, group = eir, col = eir), width = median(test_pops) / 20) +
+  scale_color_manual(values= c(`10` = "grey70", `50` = "grey40", `200` = "black")) +
+  labs(x = "Human Population", y = "Mean Runtime (s)", col = "Baseline EIR") +
+  ylim(0,NA) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.text  = element_text(size = txt_size),  
+        axis.title = element_text(size = lbl_size),  
+        legend.text = element_text(size = txt_size))
+
 #Create inset plot for Figure 2B
 simple_plt_inset <- ggplot(simple_df, aes(x = ints, y = mean_time, fill = sim)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7, col = "black") +
   geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = min_time, ymax = max_time, group = sim), width = 0.2) +
   labs(x = "", y = "", fill = "") +
   scale_x_discrete(labels = c("2","1","0")) +
-  #scale_y_continuous(breaks = c(0,100,200,300), labels = c("0", "100", "200", "300")) +
+  scale_y_continuous(breaks = c(0,100,200)) +
   scale_fill_manual(values = c("Deterministic" = "#CA0020", "Stochastic" = "#984EA3", "malariasimulation" = "grey40")) +
   theme_bw() +
   theme(
     legend.position = "none",
     panel.background = element_rect(fill = "white", colour = NA),  # white inside plot
-    plot.background = element_rect(fill = NA, colour = NA)         # transparent outside
-  )
+    plot.background = element_rect(fill = NA, colour = NA),         # transparent outside
+    axis.text  = element_text(size = txt_size),
+    axis.title = element_text(size = lbl_size))
 
 simple_plt_main <- ggplot(simple_df %>% filter(sim != "malariasimulation"), aes(x = ints, y = mean_time, fill = sim)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7, col = "black") +
@@ -184,8 +194,11 @@ simple_plt_main <- ggplot(simple_df %>% filter(sim != "malariasimulation"), aes(
   scale_x_discrete(labels = c("2","1","0")) +
   scale_fill_manual(values = c("Deterministic" = "#CA0020", "Stochastic" = "#984EA3")) +
   theme_bw() +
-  theme(legend.position = "bottom")
-
+  theme(legend.position = "bottom",
+        axis.text  = element_text(size = txt_size),   
+        axis.title = element_text(size = lbl_size),  
+        legend.text = element_text(size = txt_size),
+        ) 
 simple_plt <- ggdraw() +
   draw_plot(simple_plt_main) +  # main plot
   draw_plot(
@@ -197,7 +210,7 @@ simple_plt <- ggdraw() +
   )
 
 #Figure 2
-plot_grid(malsim_plt, simple_plt, labels = c("A", "B"))
+fig2 <- plot_grid(malsim_plt, simple_plt, labels = c("A", "B"))
 
 
 ##-------------------------------------------------------------------------------------------
@@ -207,20 +220,20 @@ plot_grid(malsim_plt, simple_plt, labels = c("A", "B"))
 #Standard parameters
 n_years <- 3
 human_pop <- 50000
-n_days <- n_years*365
-init_EIR <- 20
+n_days <- n_years * 365
+init_EIRs <- c(1, 50, 200)
 n_sims <- 20
 
 ##Seasonality parameters
-g0 = 0.28
-g = c(-0.3, -0.03, 0.17)
-h = c(-0.35, 0.32, -0.07)
+g0 <- 0.28
+g <- c(-0.3, -0.03, 0.17)
+h <- c(-0.35, 0.32, -0.07)
 
 ##Define ITN parameters
 itn_days <- c(100)
 itn_cov <- c(0.6)
-gamman <- 2.64*365
-retention <- 5*365
+gamman <- 2.64 * 365
+retention <- 5 * 365
 
 n_dist <- length(itn_days)
 dn0 <- rep(0.41, n_dist)
@@ -234,9 +247,9 @@ peak_cc <- get_peak_cc(g0, g, h)
 smc_days <- rep(365 * seq(1, n_years - 1, by = 1), each = length(smc_offsets)) +
   peak_cc +
   rep(smc_offsets, 2)
-smc_cov <- seq(0.3,0.6, length.out = length(smc_days))
-smc_min_age = 0.25*365
-smc_max_age = 5*365
+smc_cov <- seq(0.3, 0.6, length.out = length(smc_days))
+smc_min_age = 0.25 * 365
+smc_max_age = 5 * 365
 
 draws <- sample(1:1000, replace = TRUE, size = n_sims)
 
@@ -274,19 +287,22 @@ malsim_params <- malariasimulation::get_parameters(
   )
 
 malsim <- data.frame()
-for(i in 1:n_sims){
-  malsim_params_i <- malsim_params |>
-    set_parameter_draw(draw = draws[i]) |>
-    set_equilibrium(init_EIR)
-  malsim_i <- malariasimulation::run_simulation(timesteps = n_days,
-                                                parameters = malsim_params_i)
-  malsim_i$repetition = i
-  malsim <- rbind(malsim, malsim_i)
-  print(i)
+for(EIR in init_EIRs){
+  for(i in 1:n_sims){
+    malsim_params_i <- malsim_params |>
+      set_parameter_draw(draw = draws[i]) |>
+      set_equilibrium(EIR)
+    malsim_i <- malariasimulation::run_simulation(timesteps = n_days,
+                                                  parameters = malsim_params_i)
+    malsim_i$repetition <- i
+    malsim_i$EIR <- EIR
+    malsim <- rbind(malsim, malsim_i)
+    print(i)
+  }
 }
 
 malsim_summ <- malsim %>%
-  group_by(timestep) %>%
+  group_by(timestep, EIR) %>%
   mutate(prev_2_10 = n_detect_lm_730_3650 / n_age_730_3650) %>%
   summarise(prev_05 = quantile(prev_2_10, 0.05),
             prev_95 = quantile(prev_2_10, 0.95),
@@ -294,44 +310,44 @@ malsim_summ <- malsim %>%
 
 #------------------ Produce malariasimple demo runs ------------------------
 simple_det <- data.frame()
-for(i in 1:n_sims){
-  simple_det_params <- malariasimple::get_parameters(
-    parameter_draws = draws[i],
-    n_days = n_days,
-    prevalence_rendering_min_ages = c(0,2 * 365),
-    prevalence_rendering_max_ages = c(5*365, 10 * 365),
-    human_pop = human_pop
-  ) |>
-    malariasimple::set_seasonality(
-      g0 = g0,
-      g = g,
-      h = h
+for(EIR in init_EIRs){
+  for(i in 1:n_sims){
+    simple_det_params <- malariasimple::get_parameters(
+      parameter_draws = draws[i],
+      n_days = n_days,
+      prevalence_rendering_min_ages = c(0,2 * 365),
+      prevalence_rendering_max_ages = c(5*365, 10 * 365),
+      human_pop = human_pop
     ) |>
-    malariasimple::set_bednets(
-      days = itn_days,
-      coverages = itn_cov,
-      gamman = gamman,
-      retention = retention,
-      distribution_type = "random"
-    ) |>
-    malariasimple::set_smc(
-      min_age = smc_min_age,
-      max_age = smc_max_age,
-      days = smc_days,
-      coverages = smc_cov,
-      distribution_type = "random"
-    ) |>
-    malariasimple::set_equilibrium(init_EIR = init_EIR)
-  simple_det_i <- malariasimple::run_simulation(simple_det_params) |> as.data.frame()
-  simple_det_i$repetition <- i
-  simple_det <- rbind(simple_det, simple_det_i)
+      malariasimple::set_seasonality(
+        g0 = g0,
+        g = g,
+        h = h
+      ) |>
+      malariasimple::set_bednets(
+        days = itn_days,
+        coverages = itn_cov,
+        gamman = gamman,
+        retention = retention,
+        distribution_type = "random"
+      ) |>
+      malariasimple::set_smc(
+        min_age = smc_min_age,
+        max_age = smc_max_age,
+        days = smc_days,
+        coverages = smc_cov,
+        distribution_type = "random"
+      ) |>
+      malariasimple::set_equilibrium(init_EIR = EIR)
+    simple_det_i <- malariasimple::run_simulation(simple_det_params) |> as.data.frame()
+    simple_det_i$repetition <- i
+    simple_det_i$EIR <- EIR
+    simple_det <- rbind(simple_det, simple_det_i)
+  }
 }
 
-ggplot(simple_det) +
-  geom_line(aes(x=time, y = n_detect_0_1825, group = repetition))
-
 simple_det_summ <- simple_det %>%
-  group_by(time) %>%
+  group_by(time, EIR) %>%
   mutate(prev_2_10 = n_detect_730_3650 / n_730_3650) %>%
   summarise(prev_05 = quantile(prev_2_10, 0.05),
             prev_95 = quantile(prev_2_10, 0.95),
@@ -339,10 +355,53 @@ simple_det_summ <- simple_det %>%
 
 ##Set up stochsatic malariasimple parameters
 simple_stoch <- data.frame()
-for(i in 1:n_sims){
-  simple_stoch_params <- malariasimple::get_parameters(
-    parameter_draws = draws[i],
-    stochastic = TRUE,
+for(EIR in init_EIRs){
+  for(i in 1:n_sims){
+    simple_stoch_params <- malariasimple::get_parameters(
+      parameter_draws = draws[i],
+      stochastic = TRUE,
+      n_days = n_days,
+      prevalence_rendering_min_ages = c(0,2 * 365),
+      prevalence_rendering_max_ages = c(5*365, 10 * 365),
+      human_pop = human_pop
+    ) |>
+      malariasimple::set_seasonality(
+        g0 = g0,
+        g = g,
+        h = h
+      ) |>
+      malariasimple::set_bednets(
+        days = itn_days,
+        coverages = itn_cov,
+        gamman = gamman,
+        retention = retention,
+        distribution_type = "random"
+      ) |>
+      malariasimple::set_smc(
+        min_age = smc_min_age,
+        max_age = smc_max_age,
+        days = smc_days,
+        coverages = smc_cov,
+        distribution_type = "random"
+      ) |>
+      malariasimple::set_equilibrium(init_EIR = EIR)
+    simple_stoch_i <- malariasimple::run_simulation(simple_stoch_params) |> as.data.frame()
+    simple_stoch_i$repetition <- i
+    simple_stoch_i$EIR <- EIR
+    simple_stoch <- rbind(simple_stoch, simple_stoch_i)
+  }
+}
+
+simple_stoch_summ <- simple_stoch %>%
+  group_by(time, EIR) %>%
+  mutate(prev_2_10 = n_detect_730_3650 / n_730_3650) %>%
+  summarise(prev_05 = quantile(prev_2_10, 0.05),
+            prev_95 = quantile(prev_2_10, 0.95),
+            prev_mean = mean(prev_2_10))
+
+counter_sim <- data.frame()
+for(EIR in init_EIRs){
+  counter_params <- malariasimple::get_parameters(
     n_days = n_days,
     prevalence_rendering_min_ages = c(0,2 * 365),
     prevalence_rendering_max_ages = c(5*365, 10 * 365),
@@ -353,268 +412,219 @@ for(i in 1:n_sims){
       g = g,
       h = h
     ) |>
-    malariasimple::set_bednets(
-      days = itn_days,
-      coverages = itn_cov,
-      gamman = gamman,
-      retention = retention,
-      distribution_type = "random"
-    ) |>
-    malariasimple::set_smc(
-      min_age = smc_min_age,
-      max_age = smc_max_age,
-      days = smc_days,
-      coverages = smc_cov,
-      distribution_type = "random"
-    ) |>
-    malariasimple::set_equilibrium(init_EIR = init_EIR)
-  simple_stoch_i <- malariasimple::run_simulation(simple_stoch_params) |> as.data.frame()
-  simple_stoch_i$repetition <- i
-  simple_stoch <- rbind(simple_stoch, simple_stoch_i)
+    malariasimple::set_equilibrium(init_EIR = EIR)
+  counter_sim_i <- malariasimple::run_simulation(counter_params) |>
+    as.data.frame() |>
+    mutate(EIR = EIR)
+
+  counter_sim <- rbind(counter_sim, counter_sim_i)
 }
 
-simple_stoch_summ <- simple_stoch %>%
-  group_by(time) %>%
-  mutate(prev_2_10 = n_detect_730_3650 / n_730_3650) %>%
-  summarise(prev_05 = quantile(prev_2_10, 0.05),
-            prev_95 = quantile(prev_2_10, 0.95),
-            prev_mean = mean(prev_2_10))
-
-
-counter_params <- malariasimple::get_parameters(
-  n_days = n_days,
-  prevalence_rendering_min_ages = c(0,2 * 365),
-  prevalence_rendering_max_ages = c(5*365, 10 * 365),
-  human_pop = human_pop
-) |>
-  malariasimple::set_seasonality(
-    g0 = g0,
-    g = g,
-    h = h
-  ) |>
-  malariasimple::set_equilibrium(init_EIR = init_EIR)
-counter_sim <- malariasimple::run_simulation(counter_params) |> as.data.frame()
-
 #------------------ Produce prevalence time series ----------------------
-alpha <- 0.3
-lwd <- 1
-prev_ts <- ggplot() +
-  geom_vline(aes(xintercept = itn_days/365, lty = "ITN"), col = "#619CFF") +
-  geom_vline(aes(xintercept = smc_days/365, lty = "SMC"), col = "#00BA38") +
-  geom_ribbon(
-    data = malsim_summ,
-    aes(
-      x = timestep/365,
-      ymin = prev_05,
-      ymax = prev_95,
-      fill = "malariasimulation",
-      col = "malariasimulation"
-    ),
-    alpha = alpha,
-    lwd = lwd
-  ) +
-  geom_ribbon(
-    data = simple_stoch_summ,
-    aes(
-      x = time/365,
-      ymin = prev_05,
-      ymax = prev_95,
-      fill = "malariasimple - Stochastic",
-      col = "malariasimple - Stochastic"
-    ),
-    alpha = alpha,
-    lwd = lwd
-  ) +
-  geom_ribbon(
-    data = simple_det_summ,
-    aes(
-      x = time/365,
-      ymin = prev_05,
-      ymax = prev_95,
-      fill = "malariasimple - Deterministic",
-      col = "malariasimple - Deterministic"
-    ),
-    alpha = alpha,
-    lwd = lwd
-  ) +
-  geom_line(
-    data = counter_sim,
-    aes(
-      x = time/365,
-      y = n_detect_730_3650 / n_730_3650,
-      col = "Counterfactual"),
-    lwd = 1,
-    lty = 1) +
-  scale_color_manual(
-    name = "",
-    values = c(
-      "Counterfactual" = "black",
-      "malariasimulation" = malsim_col,
-      "malariasimple - Stochastic" = simple_stoch_col,
-      "malariasimple - Deterministic" = simple_det_col
-    )
-  ) +
-  scale_linetype_manual(name = "", values = c("ITN" = 2, "SMC" = 2)) +
-  scale_fill_manual(
-    name = "",
-    values = c(
-      "Counterfactual" = "black",
-      "malariasimulation" = malsim_col,
-      "malariasimple - Stochastic" = simple_stoch_col,
-      "malariasimple - Deterministic" = simple_det_col
-    ),
-    guide = "none"
-  ) +
-  labs(x = "Year", y = expression(italic(Pf) ~ PR[2 - 10])) +
-  theme_bw() +
-  theme(legend.position = "none")
-prev_ts
-simple_det$simple_prevalence <- simple_det$n_detect_730_3650 / simple_det$n_730_3650
+prev_ts_1 <- prev_plt_ribbon(malsim_summ, simple_stoch_summ,
+                              simple_det_summ, counter_sim, EIR_set = 1,
+                              itn_days = itn_days, smc_days = smc_days)
+prev_ts_50 <- prev_plt_ribbon(malsim_summ, simple_stoch_summ,
+                              simple_det_summ, counter_sim,
+                              itn_days = itn_days, smc_days = smc_days, EIR_set = 50)
+prev_ts_200 <- prev_plt_ribbon(malsim_summ, simple_stoch_summ,
+                              simple_det_summ, counter_sim, EIR_set = 200,
+                              itn_days = itn_days, smc_days = smc_days)
+
 
 #------------------ Produce prevalence histogram ----------------------
+simple_det$simple_prevalence <- simple_det$n_detect_730_3650 / simple_det$n_730_3650
 resid_df <- malsim %>%
   mutate(malsim_prevalence = n_detect_lm_730_3650 / n_age_730_3650) %>%
-  dplyr::select(malsim_prevalence, timestep, repetition) %>%
-  full_join(simple_det[,c("time", "simple_prevalence", "repetition")], by = join_by(timestep == time, repetition == repetition)) %>%
+  dplyr::select(malsim_prevalence, timestep, repetition, EIR) %>%
+  full_join(simple_det[,c("time", "simple_prevalence", "repetition", "EIR")],
+            by = join_by(timestep == time, repetition == repetition, EIR == EIR)) %>%
   mutate(resid = malsim_prevalence - simple_prevalence)
 
-prev_hist <- ggplot(resid_df, aes(resid)) +
-  geom_histogram(aes(y = after_stat(density)), fill = "grey50") +
-  geom_vline(aes(xintercept = 0)) +
-  labs(x = "Model Difference", y = "Density") +
-  theme_bw()
+prev_hist_1 <- prev_hist(resid_df, EIR_set = 1)
+prev_hist_50 <- prev_hist(resid_df, EIR_set = 50)
+prev_hist_200 <- prev_hist(resid_df, EIR_set = 200)
 #------------------ Produce weekly cases time series --------------------
 weekly_inc_simple_det <- simple_det %>%
   mutate(week = 1 + (time - time %% 7) / 7) %>%
-  group_by(week, repetition) %>%
+  group_by(week, repetition, EIR) %>%
   summarise(clin_inc = sum(n_clin_inc_0_Inf)) %>%
   mutate(day = week * 7)
 
 weekly_inc_simple_stoch <- simple_stoch %>%
   mutate(week = 1 + (time - time %% 7) / 7) %>%
-  group_by(week, repetition) %>%
+  group_by(week, repetition, EIR) %>%
   summarise(clin_inc = sum(n_clin_inc_0_Inf)) %>%
   mutate(day = week * 7)
 
 weekly_inc_malsim <- malsim %>%
   mutate(week = 1 + (timestep - timestep %% 7) / 7) %>%
-  group_by(week, repetition) %>%
+  group_by(week, repetition, EIR) %>%
   summarise(clin_inc = sum(n_inc_clinical_0_36500)) %>%
   mutate(day = week * 7)
 
 weekly_inc_counter <- counter_sim %>%
   mutate(week = 1 + (time - time %% 7) / 7) %>%
-  group_by(week) %>%
+  group_by(week, EIR) %>%
   summarise(clin_inc = sum(n_clin_inc_0_Inf)) %>%
   mutate(day = week * 7)
 
 weekly_simple_det_summ <- weekly_inc_simple_det %>%
-  group_by(week) %>%
+  group_by(week, EIR) %>%
   summarise(cases_05 = quantile(clin_inc, 0.05),
             cases_95 = quantile(clin_inc, 0.95),
             cases_mean = mean(clin_inc))
 
 weekly_simple_stoch_summ <- weekly_inc_simple_stoch %>%
-  group_by(week) %>%
+  group_by(week, EIR) %>%
   summarise(cases_05 = quantile(clin_inc, 0.05),
             cases_95 = quantile(clin_inc, 0.95),
             cases_mean = mean(clin_inc))
 
 weekly_malsim_summ <- weekly_inc_malsim %>%
-  group_by(week) %>%
+  group_by(week, EIR) %>%
   summarise(cases_05 = quantile(clin_inc, 0.05),
             cases_95 = quantile(clin_inc, 0.95),
             cases_mean = mean(clin_inc))
 
 
 #Produce plot
-cases_ts <- ggplot() +
-  geom_vline(aes(xintercept = itn_days / 365, lty = "ITN"), col = "#619CFF") +
-  geom_vline(aes(xintercept = smc_days / 365, lty = "SMC"), col = "#00BA38") +
-  geom_ribbon(data = weekly_malsim_summ, aes(x= week / 52, ymin = cases_05, ymax = cases_95,
-                                             col = "malariasimulation",
-                                             fill = "malariasimulation"),
-              alpha = 0.3,
-              lwd = lwd) +
-  geom_ribbon(data = weekly_simple_stoch_summ, aes(x= week / 52, ymin = cases_05, ymax = cases_95,
-                                                   col = "Stochastic",
-                                                   fill = "Stochastic"),
-              alpha = 0.3,
-              lwd=lwd) +
-  geom_ribbon(data = weekly_simple_det_summ, aes(x= week / 52, ymin = cases_05, ymax = cases_95,
-                                                 col = "Deterministic",
-                                                 fill = "Deterministic"),
-              alpha = 0.3,
-              lwd=lwd) +
-  geom_line(data = weekly_inc_counter, aes(x=day / 365, y = clin_inc,
-                                           col = "Counterfactual"),
-            linewidth = 1.) +
-  labs(x = "Year", y = "Weekly Cases") +
-  scale_color_manual(
-    name = "",
-    values = c(
-      "Counterfactual" = "black",
-      "malariasimulation" = malsim_col,
-      "Stochastic" = simple_stoch_col,
-      "Deterministic" = simple_det_col
-    ),
-    breaks = c("Counterfactual", "Deterministic", "Stochastic", "malariasimulation"),
-    guide = guide_legend(
-      override.aes = list(
-        fill     = c("black", simple_det_col,simple_stoch_col, malsim_col),
-        alpha    = c(1,             0.4,       0.4, 0.4),
-        linetype = c(1,             1,         1, 1),
-        linewidth= c(lwd,             lwd,       lwd, 1)
-      ))
-  ) +
-  scale_linetype_manual(name = "", values = c("ITN" = 2, "SMC" = 2),
-                        labels = c("ITN" = "ITN Distribution",
-                                   "SMC" = "SMC Distribution")) +
-  scale_fill_manual(
-    name = "",
-    values = c(
-      "Counterfactual" = "black",
-      "malariasimulation" = malsim_col,
-      "Stochastic" = simple_stoch_col,
-      "Deterministic" = simple_det_col
-    ),
-    breaks = c("Counterfactual", "Deterministic", "Stochastic", "malariasimulation"),
-    guide = "none"
-  ) +
-  theme_bw() +
-  theme(legend.position = "bottom")
+cases_ts_1 <- cases_ts(weekly_malsim_summ, weekly_simple_det_summ, weekly_simple_stoch_summ,
+                        weekly_inc_counter, EIR_set = 1, itn_days = itn_days, smc_days = smc_days)
+cases_ts_50 <- cases_ts(weekly_malsim_summ, weekly_simple_det_summ, weekly_simple_stoch_summ,
+                        weekly_inc_counter, EIR_set = 50, itn_days = itn_days, smc_days = smc_days)
+cases_ts_200 <- cases_ts(weekly_malsim_summ, weekly_simple_det_summ, weekly_simple_stoch_summ,
+                        weekly_inc_counter, EIR_set = 200, itn_days = itn_days, smc_days = smc_days)
 
 #------------------ Produce weekly cases histogram --------------------
 ##Residuals histogram
 weekly_cases_resid_df <- weekly_inc_malsim %>%
-  full_join(weekly_inc_simple_det, by = c("week", "repetition")) %>%
+  full_join(weekly_inc_simple_det, by = c("week", "repetition", "EIR")) %>%
   mutate(resid = clin_inc.x - clin_inc.y) %>%
   mutate(rel_resid = resid / clin_inc.x)
 
-cases_hist <- ggplot(weekly_cases_resid_df) +
-  geom_histogram(aes(x = rel_resid, y = after_stat(density)), fill = "grey50") +
-  geom_vline(aes(xintercept = 0)) +
-  labs(x = "Model Difference", y = "Density") +
-  theme_bw()
+
+cases_hist_1 <- cases_hist(weekly_cases_resid_df, EIR_set = 1)
+cases_hist_50 <- cases_hist(weekly_cases_resid_df, EIR_set = 50)
+cases_hist_200 <- cases_hist(weekly_cases_resid_df, EIR_set = 200)
 
 #------------------ Combine plots to produce Figure 3 -----------------
-cases_ts_no_leg <- cases_ts +
+cases_ts_no_leg_50 <- cases_ts_50 +
   theme(legend.position = "none")
-legend <- get_legend(cases_ts)
+legend <- get_legend(cases_ts_50)
 empty <- ggplot() + theme_void()
-top_panel <- plot_grid(prev_ts, prev_hist, rel_widths = c(2, 1), labels = c("A", "B"))
-bottom_panel <- plot_grid(cases_ts_no_leg, cases_hist, rel_widths = c(2, 1), labels = c("C", "D"))
+top_panel <- plot_grid(prev_ts_50, prev_hist_50, rel_widths = c(2, 1), labels = c("A", "B"))
+bottom_panel <- plot_grid(cases_ts_no_leg_50, cases_hist_50, rel_widths = c(2, 1), labels = c("C", "D"))
 legend_panel <- plot_grid(legend, empty, rel_widths = c(2,1))
 
-plot_grid(
+
+fig3 <- plot_grid(
   top_panel,
   bottom_panel,
+  #legend,
   legend_panel,
   ncol = 1,
-  rel_heights = c(1, 1, 0.15)  # adjust third value for legend spacing
+  rel_heights = c(1, 1, 0.4)  # adjust third value for legend spacing
 )
 
 
+#----------------- Expanded version of Figure 3 for supplementary materials -------------------
+##EIR = 1
+cases_ts_no_leg_1 <- cases_ts_1 +
+  theme(legend.position = "none")
+top_panel_1 <- plot_grid(prev_ts_1, prev_hist_1, rel_widths = c(2, 1), labels = c("A", "B"))
+bottom_panel_1 <- plot_grid(cases_ts_no_leg_1, cases_hist_1, rel_widths = c(2, 1), labels = c("C", "D"))
+
+plot_1 <- plot_grid(
+  top_panel_1,
+  bottom_panel_1,
+  #legend_panel,
+  ncol = 1,
+  rel_heights = c(1, 1, 0.15)
+)
+
+plt_1_title <- ggdraw() +
+  draw_label(
+    "Low Transmission Scenario",
+    fontface = "bold",
+    size = 14,
+    x = 0.5,
+    y = 0.98,
+    hjust = 0.5,
+    vjust = 1) +
+  draw_plot(
+    plot_1,
+    x = 0,
+    y = 0,
+    width = 1,
+    height = 0.95)
+##EIR = 50
+cases_ts_no_leg_50 <- cases_ts_50 +
+  theme(legend.position = "none")
+top_panel_50 <- plot_grid(prev_ts_50, prev_hist_50, rel_widths = c(2, 1), labels = c("E", "F"))
+bottom_panel_50 <- plot_grid(cases_ts_no_leg_50, cases_hist_50, rel_widths = c(2, 1), labels = c("G", "H"))
+
+plot_50 <- plot_grid(
+  top_panel_50,
+  bottom_panel_50,
+  ncol = 1,
+  rel_heights = c(1, 1, 0.15)
+)
+
+plt_50_title <- ggdraw() +
+  draw_label(
+    "Moderate Transmission Scenario",
+    fontface = "bold",
+    size = 14,
+    x = 0.5,
+    y = 0.98,
+    hjust = 0.5,
+    vjust = 1) +
+  draw_plot(
+    plot_50,
+    x = 0,
+    y = 0,
+    width = 1,
+    height = 0.95)
+##Again for EIR = 200
+cases_ts_no_leg_200 <- cases_ts_200 +
+  theme(legend.position = "none")
+top_panel_200 <- plot_grid(prev_ts_200, prev_hist_200, rel_widths = c(2, 1), labels = c("I", "J"))
+bottom_panel_200 <- plot_grid(cases_ts_no_leg_200, cases_hist_200, rel_widths = c(2, 1), labels = c("K", "L"))
+
+
+plot_200 <- plot_grid(
+  top_panel_200,
+  bottom_panel_200,
+  legend_panel,
+  ncol = 1,
+  rel_heights = c(1, 1, 0.15)
+)
+
+plt_200_title <- ggdraw() +
+  draw_label(
+    "High Transmission Scenario",
+    fontface = "bold",
+    size = 14,
+    x = 0.5,
+    y = 0.98,
+    hjust = 0.5,
+    vjust = 1) +
+  draw_plot(
+    plot_200,
+    x = 0,
+    y = 0,
+    width = 1,
+    height = 0.95)
+
+
+
+fig3_exp <-  plot_grid(
+    plt_1_title,
+    plt_50_title,
+    plt_200_title,
+    ncol = 1
+  )
 
 ##-------------------------------------------------------------------------------------------
 #                    FIGURE 4 - COMPARISON OF INTERVENTION EFFECTIVENESS
@@ -920,7 +930,7 @@ eff_summ_long <- eff_summ %>%
   filter(!(ages == "all" & intervention == "smc"),
          !(ages == "under_5" & intervention == "itn"))
 #------------------ Produce plot ------------------------
-ggplot(eff_summ_long) +
+fig4 <- ggplot(eff_summ_long) +
   geom_bar(stat = "identity", aes(x=model, y = mean, fill = model), col = "black") +
   geom_errorbar(aes(x=model, ymin = lo, ymax = hi), col = "black", width = 0.1) +
   geom_text(data = eff_summ_long,
@@ -1095,7 +1105,9 @@ eir_dens_plt <- ggplot(samples_df_wide) +
   theme_classic() +
   theme(legend.position = "none",
         strip.background = element_blank(),
-        strip.placement = "outside")
+        strip.placement = "outside",       
+        axis.text  = element_text(size = txt_size),  
+        axis.title = element_text(size = lbl_size))
 
 cov_dens_plt <- ggplot(samples_df_wide) +
   geom_rect(data = ci90 %>% filter(variable == "Coverage"),
@@ -1112,11 +1124,23 @@ cov_dens_plt <- ggplot(samples_df_wide) +
   theme_classic() +
   theme(legend.position = "none",
         strip.background = element_blank(),
-        strip.placement = "outside")
+        strip.placement = "outside",
+        axis.text  = element_text(size = txt_size),  
+        axis.title = element_text(size = lbl_size))
 
 corr_plt <- ggplot(data = samples_df_wide) +
-  geom_point(aes(x=`Baseline EIR`, y = Coverage), shape = 21, col = "grey10", fill = "grey10", alpha = 0.5, size = 2.5) +
-  theme_bw()
+  geom_point(
+    aes(x = `Baseline EIR`, y = Coverage),
+    shape = 21,
+    col = "grey10",
+    fill = "grey10",
+    alpha = 0.5,
+    size = 2.5
+  ) +
+  theme_bw() +
+  theme(axis.text  = element_text(size = txt_size),
+        axis.title = element_text(size = lbl_size))
+  
 
 ##Figure 5
 left_col <- plot_grid(
@@ -1124,7 +1148,7 @@ left_col <- plot_grid(
   ncol = 1,
   labels = c("A", "B")   # labels for the stacked plots
 )
-plot_grid(
+fig5 <- plot_grid(
   left_col, corr_plt,
   ncol = 2,
   rel_widths = c(2, 1),  # left column is twice as wide
@@ -1170,7 +1194,7 @@ posterior_summary <- posterior_simulation %>%
             q95 = quantile(n_detect_0_1825, 0.95) / n_0_1825,
             .groups = "drop")
 
-ggplot(posterior_summary, aes(x=time/ 365)) +
+fig6 <- ggplot(posterior_summary, aes(x=time/ 365)) +
   geom_vline(aes(xintercept = 1, lty = "ITN"), col = "#619CFF", lty = 2) +
   geom_ribbon(aes(ymin = q05, ymax = q95, fill  = "90% CI")) +
   geom_ribbon(aes(ymin = q25, ymax = q75, fill = "50% CI")) +
@@ -1191,4 +1215,15 @@ ggplot(posterior_summary, aes(x=time/ 365)) +
   ) +
   labs(x = "Year", y = expression(P~italic(f)~PR[0-5])) +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",        
+        axis.text  = element_text(size = txt_size),  
+        axis.title = element_text(size = lbl_size))
+
+
+##Print Figures
+print(fig2)
+print(fig3)
+print(fig3_exp)
+print(fig4)
+print(fig5)
+print(fig6)
