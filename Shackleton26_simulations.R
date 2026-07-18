@@ -28,7 +28,7 @@ library(microbenchmark) #Version 1.5.0
 library(dplyr) #Version 1.1.4
 library(ggplot2) #Version 3.5.2
 library(cowplot) #Version 1.2.0
-source("Shackleton26_functions_revised.R")
+source("Shackleton26_functions.R")
 
 #Set colour scheme
 simple_det_col   <- "#CA0020"
@@ -167,8 +167,8 @@ malsim_plt <- ggplot(malsim_df) +
   ylim(0,NA) +
   theme_bw() +
   theme(legend.position = "bottom",
-        axis.text  = element_text(size = txt_size),  
-        axis.title = element_text(size = lbl_size),  
+        axis.text  = element_text(size = txt_size),
+        axis.title = element_text(size = lbl_size),
         legend.text = element_text(size = txt_size))
 
 #Create inset plot for Figure 2B
@@ -195,10 +195,10 @@ simple_plt_main <- ggplot(simple_df %>% filter(sim != "malariasimulation"), aes(
   scale_fill_manual(values = c("Deterministic" = "#CA0020", "Stochastic" = "#984EA3")) +
   theme_bw() +
   theme(legend.position = "bottom",
-        axis.text  = element_text(size = txt_size),   
-        axis.title = element_text(size = lbl_size),  
+        axis.text  = element_text(size = txt_size),
+        axis.title = element_text(size = lbl_size),
         legend.text = element_text(size = txt_size),
-        ) 
+        )
 simple_plt <- ggdraw() +
   draw_plot(simple_plt_main) +  # main plot
   draw_plot(
@@ -1105,8 +1105,8 @@ eir_dens_plt <- ggplot(samples_df_wide) +
   theme_classic() +
   theme(legend.position = "none",
         strip.background = element_blank(),
-        strip.placement = "outside",       
-        axis.text  = element_text(size = txt_size),  
+        strip.placement = "outside",
+        axis.text  = element_text(size = txt_size),
         axis.title = element_text(size = lbl_size))
 
 cov_dens_plt <- ggplot(samples_df_wide) +
@@ -1125,7 +1125,7 @@ cov_dens_plt <- ggplot(samples_df_wide) +
   theme(legend.position = "none",
         strip.background = element_blank(),
         strip.placement = "outside",
-        axis.text  = element_text(size = txt_size),  
+        axis.text  = element_text(size = txt_size),
         axis.title = element_text(size = lbl_size))
 
 corr_plt <- ggplot(data = samples_df_wide) +
@@ -1140,7 +1140,7 @@ corr_plt <- ggplot(data = samples_df_wide) +
   theme_bw() +
   theme(axis.text  = element_text(size = txt_size),
         axis.title = element_text(size = lbl_size))
-  
+
 
 ##Figure 5
 left_col <- plot_grid(
@@ -1215,8 +1215,8 @@ fig6 <- ggplot(posterior_summary, aes(x=time/ 365)) +
   ) +
   labs(x = "Year", y = expression(P~italic(f)~PR[0-5])) +
   theme_bw() +
-  theme(legend.position = "none",        
-        axis.text  = element_text(size = txt_size),  
+  theme(legend.position = "none",
+        axis.text  = element_text(size = txt_size),
         axis.title = element_text(size = lbl_size))
 
 
